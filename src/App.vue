@@ -88,24 +88,33 @@ export default {
         let result = XLSX.utils.sheet_to_json(worksheet); //json数据格式
         console.log("最终解析的 json 格式数据:");
         this.resArr = [];
-        result.forEach((item) => {
-          let reg = /(production-url):http[s]??.*?.(png)/g;
-          console.log(item);
-          let orderId = item[`订单号`];
-          let str = item[`产品规格`];
-          // console.log(str);
-          let res = str.match(reg);
-          if (res) {
-            // let reg1 = /http[s]??.*?.(png)/g;
-            // let production_url = res.toString();
-            // item = production_url.match(reg1).toString();
-            res = res.toString().slice(15);
-            // arr[index][`产品规格`] = url;
-          } else {
-            res = str;
-          }
-          this.resArr.push([orderId, res]);
-        });
+        try {
+          result.forEach((item) => {
+            if (!item[`订单号`]) {
+              throw Error("没有订单号字段");
+            }
+            if (!item[`产品规格`]) {
+              throw Error("没有产品规格字段");
+            }
+            let reg = /(production-url):http[s]??.*?.(png)/g;
+            console.log(item);
+            let orderId = item[`订单号`];
+            let str = item[`产品规格`];
+            let res = str.match(reg);
+            if (res) {
+              // let reg1 = /http[s]??.*?.(png)/g;
+              // let production_url = res.toString();
+              // item = production_url.match(reg1).toString();
+              res = res.toString().slice(15);
+              // arr[index][`产品规格`] = url;
+            } else {
+              res = str;
+            }
+            this.resArr.push([orderId, res]);
+          });
+        } catch (err) {
+          alert(err);
+        }
         this.resArr.unshift(["订单号", "产品规格"]);
         console.log(this.resArr);
         const workbook1 = XLSX.utils.book_new();
