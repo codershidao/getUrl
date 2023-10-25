@@ -32,6 +32,8 @@
 const XLSX = require("xlsx");
 
 // import loadZip from "./utils/download";
+import NoncustomizedList from "./public/Nocustomized";
+
 export default {
   name: "App",
   data() {
@@ -74,19 +76,19 @@ export default {
     },
     async handle(ev) {
       let file = ev.raw;
-      console.log(file);
+      // console.log(file);
       if (!file) {
         console.log("文件打开失败");
         return;
       } else {
         let data = await this.readFile(file);
         let workbook = XLSX.read(data, { type: "binary" }); //解析二进制格式数据
-        console.log("二进制数据的解析:");
-        console.log(workbook);
+        // console.log("二进制数据的解析:");
+        // console.log(workbook);
         // 如果有多个sheets的情况 循环即可，现在暂不考虑
         let worksheet = workbook.Sheets[workbook.SheetNames[0]]; //获取第一个Sheet
         let result = XLSX.utils.sheet_to_json(worksheet); //json数据格式
-        console.log("最终解析的 json 格式数据:");
+        // console.log("最终解析的 json 格式数据:");
         this.resArr = [];
         try {
           result.forEach((item) => {
@@ -97,9 +99,10 @@ export default {
               throw Error("没有产品规格字段");
             }
             let reg = /(production-url):http[s]??.*?.(png)/g;
-            console.log(item);
+            // console.log(item);
             let orderId = item[`订单号`];
             let str = item[`产品规格`];
+            let SKU = item["SKU"];
             let res = str.match(reg);
             if (res) {
               // let reg1 = /http[s]??.*?.(png)/g;
@@ -108,7 +111,24 @@ export default {
               res = res.toString().slice(15);
               // arr[index][`产品规格`] = url;
             } else {
-              res = str;
+              // 这里匹配非定制产品
+              let firstIndex = SKU.indexOf("-");
+              let secondIndex = SKU.indexOf("-", firstIndex + 1);
+              let toSKU = SKU.substring(secondIndex + 1, secondIndex + 7);
+              try {
+                NoncustomizedList.forEach((item1) => {
+                  if (item1[toSKU]) {
+                    res = item1[toSKU];
+                    throw "error";
+                  } else {
+                    res = str;
+                  }
+                });
+              } catch (e) {
+                console.log(e);
+              }
+
+              console.log(res);
             }
             this.resArr.push([orderId, res]);
           });
@@ -116,7 +136,7 @@ export default {
           alert(err);
         }
         this.resArr.unshift(["订单号", "产品规格"]);
-        console.log(this.resArr);
+        // console.log(this.resArr);
         const workbook1 = XLSX.utils.book_new();
         const worksheetName = "SheetJS";
         const worksheet1 = XLSX.utils.aoa_to_sheet(this.resArr);
