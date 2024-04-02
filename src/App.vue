@@ -1,30 +1,111 @@
 <template>
   <div id="app">
-    <el-upload
-      action
-      accept=".xlsx, .xls"
-      :auto-upload="false"
-      :show-file-list="false"
-      :on-change="handle"
-      style="margin-bottom:20px"
-    >
-      <template>
-        <el-button type="primary">选择excel转换链接</el-button>
-      </template>
-    </el-upload>
-    <span>注：excel表格类似下表，表头必须字段含 <span style="color: red;margin-left:5px">产品规格</span></span>
-    <el-table
-      :data="tableData"
-      border
-      style="width: 60%;margin-top:5px"
-    >
-      <el-table-column
-        prop="address"
-        label="产品规格
+    <el-container>
+      <el-header>订单处理后台</el-header>
+      <el-main>
+        <el-row :gutter="20">
+          <el-col
+            :span="6"
+            style="backgroundColor:#b3c0d1"
+          >
+            <div class="grid-content bg-purple"><el-upload
+                  action
+                  accept=".xlsx, .xls"
+                  :auto-upload="false"
+                  :show-file-list="false"
+                  :on-change="handle"
+                  style="margin-bottom:20px"
+                >
+                  <template>
+                    <el-button type="primary">选择excel转换链接</el-button>
+                  </template>
+                </el-upload></div>
+
+          </el-col>
+          <el-col
+            :span="6"
+            style="backgroundColor:#93db9f"
+          >
+            <el-link
+              href="https://www.nowmsg.com/findzip/findzip.asp"
+              target="_blank"
+            >查询邮编</el-link>
+          </el-col>
+          <el-col
+            :span="6"
+            style="backgroundColor:#b3c0d1"
+          >
+            <el-link
+              href="https://www.google.com/maps/@47.5951518,-122.3316394,17z?authuser=4&hl=zh-cn&entry=ttu"
+              target="_blank"
+            >谷歌地图</el-link>
+          </el-col>
+          <el-col
+            :span="6"
+            style="backgroundColor:#93db9f"
+          >
+            <el-link
+              href="https://tools.pdf24.org/zh/all-tools"
+              target="_blank"
+            >PDF工具</el-link>
+          </el-col>
+        </el-row>
+        <el-row
+          :gutter="20"
+          style="margin-top:20px"
+        >
+          <el-col
+            :span="6"
+            style="backgroundColor:#b3c0d1"
+          >
+            <el-link
+              href="https://wqs7t2uruc.feishu.cn/sheets/Ng0ZsTphbhKE7at84WAcE2Mnnrd?sheet=P4bbZj"
+              target="_blank"
+            >供应链表格</el-link>
+          </el-col>
+          <el-col
+            :span="6"
+            style="backgroundColor:#93db9f"
+          >
+            <el-link
+              href="https://www.17track.net/zh-cn"
+              target="_blank"
+            >17TRACK</el-link>
+          </el-col>
+          <el-col
+            :span="6"
+            style="backgroundColor:#b3c0d1"
+          >
+            <el-link
+              href="https://www.hsbianma.com/"
+              target="_blank"
+            >海关编码查找</el-link>
+          </el-col>
+          <el-col
+            :span="6"
+            style="backgroundColor:#93db9f"
+          >
+            <el-link
+              href="https://chat.openai.com/"
+              target="_blank"
+            >GPT</el-link>
+          </el-col>
+        </el-row>
+        <!-- <el-table
+          :data="tableData"
+          border
+          style="width: 60%;margin-top:5px" 
+        >
+          <el-table-column
+            prop="address"
+            label="产品规格
 "
-      >
-      </el-table-column>
-    </el-table>
+          >
+          </el-table-column>
+        </el-table> -->
+      </el-main>
+    </el-container>
+
   </div>
 </template>
  
@@ -78,7 +159,7 @@ export default {
       let file = ev.raw;
       // console.log(file);
       if (!file) {
-        console.log("文件打开失败");
+        // console.log("文件打开失败");
         return;
       } else {
         let data = await this.readFile(file);
@@ -98,42 +179,35 @@ export default {
             if (!item[`产品规格`]) {
               throw Error("没有产品规格字段");
             }
+            if (!item[`SKU`]) {
+              throw Error("没有SKU字段");
+            }
             let reg = /(production-url):http[s]??.*?.(png)/g;
-            // console.log(item);
             let orderId = item[`订单号`];
             let str = item[`产品规格`];
             let SKU = item["SKU"];
+            let strlength = SKU.lastIndexOf("-");
+            SKU = SKU.slice(0, strlength);
             let res = str.match(reg);
             if (res) {
-              // let reg1 = /http[s]??.*?.(png)/g;
-              // let production_url = res.toString();
-              // item = production_url.match(reg1).toString();
               res = res.toString().slice(15);
-              // arr[index][`产品规格`] = url;
             } else {
               // 这里匹配非定制产品
-              let firstIndex = SKU.indexOf("-");
-              let secondIndex = SKU.indexOf("-", firstIndex + 1);
-              let toSKU = SKU.substring(secondIndex + 1, secondIndex + 7);
-              try {
-                NoncustomizedList.forEach((item1) => {
-                  if (item1[toSKU]) {
-                    res = item1[toSKU];
-                    throw "error";
-                  } else {
-                    res = str;
-                  }
-                });
-              } catch (e) {
-                console.log(e);
-              }
-
-              console.log(res);
+              NoncustomizedList.forEach((item1) => {
+                if (item1.name === SKU) {
+                  res = item1.url;
+                }
+              });
+            }
+            if (res == null) {
+              res = str;
             }
             this.resArr.push([orderId, res]);
+            return;
           });
         } catch (err) {
           alert(err);
+          return;
         }
         this.resArr.unshift(["订单号", "产品规格"]);
         // console.log(this.resArr);
@@ -175,5 +249,39 @@ input[type="file"] {
 
 .el-upload__input {
   display: none;
+}
+.el-header,
+.el-footer {
+  background-color: #b3c0d1;
+  color: #333;
+  text-align: center;
+  line-height: 60px;
+}
+
+.el-aside {
+  background-color: #d3dce6;
+  color: #333;
+  text-align: center;
+  line-height: 200px;
+}
+
+.el-main {
+  background-color: #e9eef3;
+  color: #333;
+  text-align: center;
+  line-height: 160px;
+}
+
+body > .el-container {
+  margin-bottom: 40px;
+}
+
+.el-container:nth-child(5) .el-aside,
+.el-container:nth-child(6) .el-aside {
+  line-height: 260px;
+}
+
+.el-container:nth-child(7) .el-aside {
+  line-height: 320px;
 }
 </style>
