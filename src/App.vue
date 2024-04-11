@@ -9,17 +9,20 @@
             style="backgroundColor:#b3c0d1"
           >
             <div class="grid-content bg-purple"><el-upload
-                  action
-                  accept=".xlsx, .xls"
-                  :auto-upload="false"
-                  :show-file-list="false"
-                  :on-change="handle"
-                  style="margin-bottom:20px"
-                >
-                  <template>
-                    <el-button type="primary">选择excel转换链接</el-button>
-                  </template>
-                </el-upload></div>
+                action
+                accept=".xlsx, .xls"
+                :auto-upload="false"
+                :show-file-list="false"
+                :on-change="handle"
+                style="margin-bottom:20px"
+              >
+                <template>
+                  <el-button type="primary">选择excel转换链接</el-button>
+                </template>
+              </el-upload>
+              <span>注：表头必须字段含 <span style="color: red;">订单号</span><span style="color: red;margin-left:5px">图片链接</span></span>
+
+            </div>
 
           </el-col>
           <el-col
@@ -91,18 +94,46 @@
             >GPT</el-link>
           </el-col>
         </el-row>
-        <!-- <el-table
-          :data="tableData"
-          border
-          style="width: 60%;margin-top:5px" 
+        <el-row
+          :gutter="20"
+          style="margin-top:20px"
         >
-          <el-table-column
-            prop="address"
-            label="产品规格
-"
+          <el-col
+            :span="6"
+            style="backgroundColor:#b3c0d1"
           >
-          </el-table-column>
-        </el-table> -->
+            <div v-if="downloading">下载中...</div>
+            <div v-else-if="downloaded">下载完成</div>
+            <el-upload
+              action
+              accept=".xlsx, .xls"
+              :auto-upload="false"
+              :show-file-list="false"
+              :on-change="handle1"
+              style="margin-bottom:20px"
+            >
+              <template>
+                <el-button type="primary">选择excel表批量下载图片</el-button>
+              </template>
+            </el-upload>
+            <span>注：表头必须字段含 <span style="color: red;">SKU</span><span style="color: red;margin-left:5px">图片链接</span><span style="color: red;margin-left:5px">产品数量</span></span>
+          </el-col>
+          <el-col
+            :span="6"
+            style="backgroundColor:#93db9f"
+          >
+          </el-col>
+          <el-col
+            :span="6"
+            style="backgroundColor:#b3c0d1"
+          >
+          </el-col>
+          <el-col
+            :span="6"
+            style="backgroundColor:#93db9f"
+          >
+          </el-col>
+        </el-row>
       </el-main>
     </el-container>
 
@@ -112,39 +143,75 @@
 <script>
 const XLSX = require("xlsx");
 
-// import loadZip from "./utils/download";
+import loadZip from "./utils/download";
 import NoncustomizedList from "./public/Nocustomized";
 
 export default {
   name: "App",
   data() {
     return {
-      tableData: [
-        {
-          date: "1",
-          name: "王小虎",
-          address: "http://s1jf91klb.hn-bkt.clouddn.com/preview.jpg",
-        },
-        {
-          date: "2",
-          name: "王小虎",
-          address: "http://s1jf91klb.hn-bkt.clouddn.com/preview.jpg",
-        },
-        {
-          date: "3",
-          name: "王小虎",
-          address: "http://s1jf91klb.hn-bkt.clouddn.com/preview.jpg",
-        },
-        {
-          date: "4",
-          name: "王小虎",
-          address: "http://s1jf91klb.hn-bkt.clouddn.com/preview.jpg",
-        },
-      ],
       resArr: [],
+      downloading: false,
+      downloaded: false,
     };
   },
   methods: {
+    readFile1(file) {
+      return new Promise((resolve) => {
+        let reader = new FileReader();
+        reader.readAsBinaryString(file);
+        reader.onload = (ev) => {
+          resolve(ev.target.result);
+        };
+      });
+    },
+    async handle1(ev) {
+      this.downloading = true;
+      let file = ev.raw;
+      if (!file) {
+        console.log("文件打开失败");
+        return;
+      } else {
+        let data = await this.readFile1(file);
+        let workbook = XLSX.read(data, { type: "binary" });
+        console.log("二进制数据的解析:");
+        console.log(workbook);
+        let worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        let result = XLSX.utils.sheet_to_json(worksheet);
+        console.log("最终解析的 json 格式数据:");
+        console.log(result);
+        let counts = {};
+        let newArray = result.map((obj) => {
+          counts[obj.SKU] = (counts[obj.SKU] || 0) + 1;
+          let repeatCount = counts[obj.SKU];
+          let name =
+            repeatCount > 1
+              ? `${obj.SKU}-${repeatCount}=${obj["产品数量"]}`
+              : `${obj.SKU}=${obj["产品数量"]}`;
+          return {
+            name: name,
+            url: obj["图片链接"],
+          };
+        });
+        console.log(newArray);
+
+        if (result.length <= 0) {
+          this.$message.error("文件为空");
+          this.downloading = false;
+          return;
+        } else {
+          if (result[0][`图片链接`]) {
+            loadZip(newArray, file.name, () => {
+              this.downloaded = true;
+              this.downloading = false;
+            });
+          } else {
+            this.$message.error("文件格式不正确");
+            this.downloading = false;
+          }
+        }
+      }
+    },
     readFile(file) {
       //文件读取
       return new Promise((resolve) => {
@@ -210,32 +277,11 @@ export default {
           return;
         }
         this.resArr.unshift(["订单号", "产品规格"]);
-        // console.log(this.resArr);
         const workbook1 = XLSX.utils.book_new();
         const worksheetName = "SheetJS";
         const worksheet1 = XLSX.utils.aoa_to_sheet(this.resArr);
-
-        // Add the worksheet to the workbook
         XLSX.utils.book_append_sheet(workbook1, worksheet1, worksheetName);
-
-        // At this point, out.xls will have been downloaded.
-        // Output format determined by filename
         XLSX.writeFile(workbook1, "out.xlsx");
-        // console.log(workbook);
-        // setTimeout(function () {
-        //   XLSX.writeFile(workbook, "下载.xlsx");
-        // }, 3000);
-
-        // if (result.length <= 0) {
-        //   this.$message.error("文件为空");
-        //   return;
-        // } else {
-        //   if (result[0][`图片地址`]) {
-        //     loadZip(result, "图片");
-        //   } else {
-        //     this.$message.error("文件格式不正确");
-        //   }
-        // }
       }
     },
   },
